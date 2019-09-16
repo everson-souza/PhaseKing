@@ -8,12 +8,13 @@ public class MulticastPeer{
     public static void main(String args[]){ 
         // args give message contents and destination multicast group (e.g. "228.5.6.7")
         MulticastSocket s =null;
+        
         try {
                 InetAddress group = InetAddress.getByName(args[1]);
                 s = new MulticastSocket(6789);
                 s.joinGroup(group); 		
                 //Lê do teclado o id do processo e a mensagem                
-                int idProcesso, valor;
+                int idProcesso, valor, phase = 0;
                 
                 Scanner leID = new Scanner(System.in);               
                 System.out.println("Digite o ID do processo:");
@@ -27,15 +28,23 @@ public class MulticastPeer{
                 message.put("i", idProcesso);
                 message.put("v", valor);
                 
-                String msg = message.toString();
-                
-                //Converte para um byte array e envia
-                byte [] m = msg.getBytes();                        
-                DatagramPacket messageOut = new DatagramPacket(m, m.length, group, 6789);
-                s.send(messageOut);			
-                //Cria a thread da classe Connection e passa o socket por parâmetro
-                Connection c = new Connection(s);
+                //for (phase = 0; phase < 2; phase++ ){
+                    String msg = message.toString();
 
+                    //Converte para um byte array e envia
+                    byte [] m = msg.getBytes();                        
+                    DatagramPacket messageOut = new DatagramPacket(m, m.length, group, 6789);
+                    s.send(messageOut);			
+                    //Cria a thread da classe Connection e passa o socket por parâmetro
+                    Connection c = new Connection(s);
+
+                    if (idProcesso == phase){
+                        //Converte para um byte array e envia
+                        byte [] byteMajority = majority.getBytes();                        
+                        DatagramPacket sendMajority = new DatagramPacket(byteMajority, byteMajority.length, group, 6789);
+                        s.send(sendMajority);
+                    }
+                //}
         }catch (SocketException e){
             System.out.println("Socket: " + e.getMessage());
         }catch (IOException e){
@@ -52,7 +61,8 @@ class Connection extends Thread {
 	MulticastSocket clientSocket;
        // Vetor de respostas
         int vetor[] = new int[5];
-        int majority, mult;
+        int processos = 5;
+        int zero, um, mult, majority;
 	
         public Connection (MulticastSocket aClientSocket) {
 		try {
@@ -70,13 +80,22 @@ class Connection extends Thread {
                             
                             //Verifica majority e maioria
                             if (j == 4){
-                                for (int k: vetor)
-                                    if (k == 1) 
-                                        majority++;
-                                if (majority>=3)
-                                    mult = 1;
-                                else
+                                for(int k=0; k<vetor.length;k++) {
+                                    if (vetor[k] == 0) 
+                                        zero++;
+                                    if (vetor[k]==1)
+                                        um++;
+                                }
+                                if (zero>um){
                                     mult = 0;
+                                    majority = zero;
+                                }else if (zero < um){
+                                    mult = 1;
+                                    majority = um; 
+                                }else{
+                                    mult = -1; //Empate
+                                    majority = -1;
+                                }
                                 System.out.println("Majority: "+majority+" Mult:"+mult );
                             }
                         }                        
