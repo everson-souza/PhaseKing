@@ -5,13 +5,20 @@ import java.util.Scanner;
 import org.json.*;
 public class MulticastPeer{
     static int idProcesso, valor, phase = 0;
-    static int mult, majority = -1;
+    static Integer mult, majority;
     public static int getIdProcesso(){
         return MulticastPeer.idProcesso;
     }
     
     public static void setIdProcesso(int idProcesso) {
         MulticastPeer.idProcesso = idProcesso;
+    }
+    
+    public static Integer getMult(){
+        return MulticastPeer.mult;
+    }
+    public static Integer getMajority(){
+        return MulticastPeer.majority;
     }
     
     public static void setDatagrama(int mult, int majority) {
@@ -38,21 +45,20 @@ public class MulticastPeer{
                 System.out.println("Digite a mensagem:");
                 valor = leValor.nextByte();
                 
-                //for (int i=0; i< 2; i++){
+                //for (int phase=0; phase< 2; phase++){
                     JSONObject message = new JSONObject();
                     message.put("i", getIdProcesso());
                     message.put("v", valor);                    
 
-                    String msg = message.toString();
-
                     //Converte para um byte array e envia
-                    byte [] m = msg.getBytes();                        
+                    byte [] m = message.toString().getBytes();                        
                     DatagramPacket messageOut = new DatagramPacket(m, m.length, group, 6789);               
                     
                     s.send(messageOut);	
-                //\\\\\\\\\\\\\}		
+                    		
                 //Cria a thread da classe Connection e passa o socket por parâmetro
                 Connection c = new Connection(s);
+
                 
                 
         }catch (SocketException e){
@@ -80,7 +86,7 @@ class Connection extends Thread {
         try {
             clientSocket = aClientSocket;
             byte[] buffer = new byte[1000];
-            int i, v, p;
+            Integer i, v, p, m;
             for(int j=0; j< 6;j++) {		// get messages from others in group
 
                 DatagramPacket messageIn = new DatagramPacket(buffer, buffer.length);
@@ -112,30 +118,13 @@ class Connection extends Thread {
                         majority = -1;
                     }
                     System.out.println("Majority: "+majority+" Mult:"+mult+" ID: "+A );
-                    multicastPeer.setDatagrama(mult, majority);
+                    System.out.println("Mult antes: "+multicastPeer.getMult());
+                    multicastPeer.setDatagrama(mult, majority);                    
+                    int multa = multicastPeer.getMult();
+                    System.out.println(multa);
                 }
             }                        
             this.start();
          } catch(IOException e) {System.out.println("Connection:"+e.getMessage());}
-    }
-}
-class SegundoRound extends Thread {
-    DataInputStream in;
-    DataOutputStream out;
-    MulticastSocket clientSocket;
-   // Vetor de respostas
-    int vetor[] = new int[5];
-    int processos = 5;
-    int zero, um, mult, majority;
-    MulticastPeer multicastPeer = new MulticastPeer(); 
-    int A = multicastPeer.getIdProcesso();
-
-    public SegundoRound (MulticastSocket aClientSocket) {
-        try {
-            clientSocket = aClientSocket;
-                                             
-            this.start();
-         } 
-        catch(Exception e) {System.out.println("Connection:"+e.getMessage());}
     }
 }
