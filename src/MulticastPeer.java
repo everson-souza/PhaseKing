@@ -30,8 +30,10 @@ public class MulticastPeer{
     public static Integer getMajority(){
         return MulticastPeer.majority;
     }
-    
-    public static void setDatagrama(int mult, int majority) {
+    public static void setMajority(Integer majority){
+        MulticastPeer.majority = majority;
+    }    
+    public static void setDatagrama(Integer mult, Integer majority) {
         MulticastPeer.mult = mult;
         MulticastPeer.majority = majority;
     }
@@ -60,21 +62,12 @@ public class MulticastPeer{
                 Scanner leValor = new Scanner(System.in);
                 System.out.println("Digite a mensagem:");
                 valor = leValor.nextByte();
+                setPhase(0);
                 
                 new Thread(t1).start();            
                 new Thread(t2).start();
+                new Thread(t3).start();
                 
-                setPhase(0);
-                JSONObject message = new JSONObject();
-                message.put("i", getIdProcesso());
-                message.put("v", valor);                    
-
-                //Converte para um byte array e envia
-                byte [] m = message.toString().getBytes();                        
-                DatagramPacket messageOut = new DatagramPacket(m, m.length, group, 6789);               
-
-                s.send(messageOut);	
-
         }catch (Exception e){
             System.out.println("Socket: " + e.getMessage());
         }finally {
@@ -93,7 +86,7 @@ public class MulticastPeer{
         
         public void run() {
             try{
-                while(true){
+                while(true && getPhase() < 2){
                     int A = getIdProcesso();
                     clientSocket = getSocket();
                     byte[] buffer = new byte[1000];
@@ -107,8 +100,12 @@ public class MulticastPeer{
                         msg_recebida = new JSONObject(new String(messageIn.getData())); 				
                         System.out.println(msg_recebida);
                         if (msg_recebida.has("m")) {
-                            m = msg_recebida.getInt("m");
+                            m = msg_recebida.getInt("m");       
+                            p = msg_recebida.getInt("p");       
+                            setMajority(m);                            
                             System.out.println("MAIORIA: "+m);
+                            setPhase(p);
+                            
                         }else if(msg_recebida.has("i") && msg_recebida.has("v")){
                             i = msg_recebida.getInt("i");
                             v = msg_recebida.getInt("v");
@@ -117,24 +114,30 @@ public class MulticastPeer{
 
                             //Verifica majority e maioria
                             if (j == 4){
-                                for(int k=0; k<vetor.length;k++) {
-                                    if (vetor[k] == 0) 
-                                        zero++;
-                                    if (vetor[k]==1)
-                                        um++;
+                                int idProcesso = getIdProcesso();
+                                int phase = getPhase();    
+                                Integer majority = getMajority();     
+                                System.out.println("ID: "+ idProcesso+" Phase: "+phase+" Maioria:"+majority);
+                                if (idProcesso == phase){
+                                    for(int k=0; k<vetor.length;k++) {
+                                        if (vetor[k] == 0) 
+                                            zero++;
+                                        if (vetor[k]==1)
+                                            um++;
+                                    }
+                                    if (zero>um){
+                                        majority = 0;
+                                        mult = zero;
+                                    }else if (zero < um){
+                                        majority = 1;
+                                        mult = um; 
+                                    }else{
+                                        majority = -1; //Empate
+                                        mult = -1;
+                                    }
+                                    System.out.println("Majority: "+majority+" Mult:"+mult+" ID: "+A );
+                                    setDatagrama(mult, majority);   
                                 }
-                                if (zero>um){
-                                    majority = 0;
-                                    mult = zero;
-                                }else if (zero < um){
-                                    majority = 1;
-                                    mult = um; 
-                                }else{
-                                    majority = -1; //Empate
-                                    mult = -1;
-                                }
-                                System.out.println("Majority: "+majority+" Mult:"+mult+" ID: "+A );
-                                setDatagrama(mult, majority);                    
                             }                       
                         }                                               
                     }
@@ -151,14 +154,15 @@ public class MulticastPeer{
                 group = InetAddress.getByName("239.255.255.25");
                 s = new MulticastSocket(6789);
                 s.joinGroup(group);
-                while(true){                    
+                while(true && getPhase() < 2){                    
                     int idProcesso = getIdProcesso();
                     int phase = getPhase();    
                     Integer majority = getMajority();     
                     System.out.println("ID: "+ idProcesso+" Phase: "+phase+" Maioria:"+majority);
                     if (idProcesso == phase && majority != null){
                         JSONObject message = new JSONObject();
-                        message.put("m", getMajority());                    
+                        message.put("m", getMajority());  
+                        message.put("p", getPhase()+1);  
 
                         //Converte para um byte array e envia
                         byte [] m = message.toString().getBytes();                        
@@ -166,6 +170,35 @@ public class MulticastPeer{
 
                         s.send(messageOut);
                     }
+                }
+            } catch (Exception e){}
+ 
+        }
+    };
+    
+    private static Runnable t3 = new Runnable() {
+        
+        public void run() {
+            try{
+                group = InetAddress.getByName("239.255.255.25");
+                s = new MulticastSocket(6789);
+                s.joinGroup(group);
+                int phaseAtual = getPhase();
+                while(true && getPhase() < 2){
+                    JSONObject message = new JSONObject();
+                    message.put("i", getIdProcesso());
+                    message.put("v", valor);                    
+
+                    //Converte para um byte array e envia
+                    byte [] m = message.toString().getBytes();                        
+                    DatagramPacket messageOut = new DatagramPacket(m, m.length, group, 6789);               
+
+                    s.send(messageOut);	
+                    while(getPhase()!=phaseAtual);
+                    setDatagrama(null, null);
+                    setPhase(phaseAtual);
+                    wait(2000);
+                    
                 }
             } catch (Exception e){}
  
