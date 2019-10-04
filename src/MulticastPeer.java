@@ -4,7 +4,7 @@ import java.util.*;
 import java.util.Scanner;
 import org.json.*;
 public class MulticastPeer{
-    static int idProcesso, valor, phase = 0;
+    static int idProcesso, valor, f = 0, phase = 0, tieBreaker = 0;
     static Integer mult, majority;
     static MulticastSocket s =null;
     static InetAddress group;
@@ -46,6 +46,14 @@ public class MulticastPeer{
         MulticastPeer.s = s;        
     }
     
+    public static int getTieBreaker(){
+        return MulticastPeer.tieBreaker;
+    }
+    
+    public static void setTieBreaker(int tie) {
+        MulticastPeer.tieBreaker = tie;
+    }
+    
     public static void main(String args[]){ 
         // args give message contents and destination multicast group (e.g. "228.5.6.7")   
         try {
@@ -63,6 +71,7 @@ public class MulticastPeer{
                 System.out.println("Digite a mensagem:");
                 valor = leValor.nextByte();
                 setPhase(0);
+                setTieBreaker(0);
                 
                 new Thread(t1).start();            
                 new Thread(t2).start();
@@ -124,15 +133,21 @@ public class MulticastPeer{
                                             zero++;
                                         if (vetor[k]==1)
                                             um++;
-                                    }
-                                    if (zero>um){
-                                        majority = 0;
+                                    }   
+                                    if (zero>um){                                          
                                         mult = zero;
-                                    }else if (zero < um){
-                                        majority = 1;
+                                    }else if (zero < um){                                            
                                         mult = um; 
-                                    }else{
-                                        majority = -1; //Empate
+                                    }
+                                    if (mult> ((vetor.length)/2+f)){                                                                            
+                                        if (zero>um){
+                                            majority = 0;
+                                        }else if (zero < um){
+                                            majority = 1;
+                                        }
+                                    }
+                                    else {
+                                        majority = getTieBreaker(); //Empate
                                         mult = -1;
                                     }
                                     System.out.println("Majority: "+majority+" Mult:"+mult+" ID: "+A );
